@@ -1,12 +1,11 @@
 use bevy::prelude::*;
-use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
 use tyranny::player::PlayerPlugin;
+use tyranny::tools::ToolPlugin;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
-        .add_plugins(EguiPlugin::default())
-        .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins(ToolPlugin)
         .add_plugins(PlayerPlugin)
         .add_systems(Startup, setup)
         .run();
