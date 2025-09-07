@@ -2,15 +2,16 @@ use bevy::{
     prelude::*,
     render::{
         camera::ScalingMode,
-        render_asset::RenderAssetUsages,
-        render_resource::{Extent3d, TextureDimension, TextureFormat, TextureUsages},
+        render_resource::{
+            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+        },
         view::RenderLayers,
     },
+    window::WindowResized,
 };
 use bevy_ecs::component::HookContext;
 use bevy_ecs::world::DeferredWorld;
 use leafwing_input_manager::prelude::*;
-use std::f32::consts::FRAC_PI_4;
 
 pub struct PlayerPlugin;
 
@@ -24,7 +25,8 @@ impl Plugin for PlayerPlugin {
             .init_resource::<PlayerSettings>()
             .init_resource::<CameraSettings>()
             .add_systems(Startup, spawn_player)
-            .add_systems(Update, pan_player);
+            .add_systems(Update, pan_player)
+            .add_systems(Update, fit_window);
     }
 }
 
@@ -47,6 +49,9 @@ pub enum PlayerAction {
 pub struct ActivePlayer {
     pub id: Option<Entity>,
 }
+
+#[derive(Component, Reflect)]
+pub struct ScreenCamera;
 
 #[derive(Resource, Reflect, Debug, PartialEq, Clone, Copy)]
 #[reflect(Resource)]
@@ -74,8 +79,8 @@ impl PlayerAction {
 impl Default for CameraSettings {
     fn default() -> Self {
         Self {
-            world_render_width: 640,
-            world_render_height: 360,
+            world_render_width: 320,
+            world_render_height: 180,
         }
     }
 }
@@ -91,44 +96,41 @@ fn spawn_player(
     mut images: ResMut<Assets<Image>>,
     camera_settings: Res<CameraSettings>,
 ) {
+    let size = Extent3d {
+        width: camera_settings.world_render_width,
+        height: camera_settings.world_render_height,
+        ..default()
+    };
     // This is the texture that will be rendered to.
-    let mut image = Image::new_fill(
-        Extent3d {
-            width: camera_settings.world_render_width,
-            height: camera_settings.world_render_height,
-            ..default()
+    let mut image = Image {
+        texture_descriptor: TextureDescriptor {
+            label: None,
+            size,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Bgra8UnormSrgb,
+            mip_level_count: 1,
+            sample_count: 1,
+            // You need to set these texture usage flags in order to use the image as a render target
+            usage: TextureUsages::TEXTURE_BINDING
+                | TextureUsages::COPY_DST
+                | TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
         },
-        TextureDimension::D2,
-        &[0, 0, 0, 0],
-        TextureFormat::Bgra8UnormSrgb,
-        RenderAssetUsages::default(),
-    );
-
-    // You need to set these texture usage flags in order to use the image as a render target
-    image.texture_descriptor.usage =
-        TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST | TextureUsages::RENDER_ATTACHMENT;
-
+        ..default()
+    };
+    image.resize(size);
     let image_handle = images.add(image);
     let screen_layer = RenderLayers::layer(1);
 
     // Camera that only sees the downsampled image created by the world camera.
-    commands.spawn((Camera2d, screen_layer.clone()));
-
-    // Draw a sprite behind the world render image to give it a border.
-    commands.spawn((
-        Sprite::from_color(
-            Color::WHITE,
-            Vec2::new(
-                camera_settings.world_render_width as f32 + 10.,
-                camera_settings.world_render_height as f32 + 10.,
-            ),
-        ),
-        screen_layer.clone(),
-    ));
+    commands.spawn((Camera2d, Msaa::Off, screen_layer.clone(), ScreenCamera));
 
     // Draw the world render image.
     commands.spawn((
-        Sprite::from_image(image_handle.clone()),
+        Sprite {
+            image: image_handle.clone(),
+            ..default()
+        },
         screen_layer.clone(),
     ));
 
@@ -158,6 +160,7 @@ fn spawn_player(
                     },
                     ..OrthographicProjection::default_3d()
                 }),
+                Msaa::Off,
                 // Child transform is with respect to the parent transform.
                 // So this camera is positioned at the same location as the parent, Player.
                 Transform::from_xyz(0.0, 5.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -224,5 +227,21 @@ fn pan_player(
 
             transform.translation += delta_translation;
         }
+    }
+}
+
+/// Scales camera projection to fit the window (integer multiples only).
+fn fit_window(
+    mut resize_events: EventReader<WindowResized>,
+    mut projection: Single<&mut Projection, With<ScreenCamera>>,
+    camera_settings: Res<CameraSettings>,
+) {
+    let Projection::Orthographic(projection) = &mut **projection else {
+        return;
+    };
+    for event in resize_events.read() {
+        let h_scale = event.width / camera_settings.world_render_width as f32;
+        let v_scale = event.height / camera_settings.world_render_height as f32;
+        projection.scale = 1. / h_scale.min(v_scale).round();
     }
 }
