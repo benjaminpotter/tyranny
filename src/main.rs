@@ -29,6 +29,20 @@ fn setup(
         MeshMaterial3d(materials.add(Color::srgb(0.8, 0.0, 0.0))),
     ));
 
+    // sphere
+    commands.spawn((
+        Mesh3d(meshes.add(Sphere::new(1.))),
+        MeshMaterial3d(materials.add(Color::srgba(0.0, 0.0, 0.8, 0.1))),
+        Transform::from_xyz(0.0, 1.0, 2.0),
+    ));
+
     // light
     commands.spawn((PointLight::default(), Transform::from_xyz(3.0, 8.0, 5.0)));
+    commands.spawn((
+        DirectionalLight {
+            shadows_enabled: true,
+            ..default()
+        },
+        Transform::from_xyz(0.0, 10.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
+    ));
 }

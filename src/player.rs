@@ -12,6 +12,7 @@ use bevy::{
 use bevy_ecs::component::HookContext;
 use bevy_ecs::world::DeferredWorld;
 use leafwing_input_manager::prelude::*;
+use std::ops::DerefMut;
 
 pub struct PlayerPlugin;
 
@@ -25,7 +26,7 @@ impl Plugin for PlayerPlugin {
             .init_resource::<PlayerSettings>()
             .init_resource::<CameraSettings>()
             .add_systems(Startup, spawn_player)
-            .add_systems(Update, pan_player)
+            .add_systems(Update, (pan_player, zoom_camera))
             .add_systems(Update, fit_window);
     }
 }
@@ -47,11 +48,14 @@ pub enum PlayerAction {
 #[derive(Resource, Reflect, Default, Debug, PartialEq)]
 #[reflect(Resource)]
 pub struct ActivePlayer {
-    pub id: Option<Entity>,
+    pub player_id: Option<Entity>,
 }
 
 #[derive(Component, Reflect)]
 pub struct ScreenCamera;
+
+#[derive(Component, Reflect)]
+pub struct WorldCamera;
 
 #[derive(Resource, Reflect, Debug, PartialEq, Clone, Copy)]
 #[reflect(Resource)]
@@ -59,6 +63,9 @@ pub struct CameraSettings {
     /// The extent (a.k.a. size) that is used to create the render target for the world camera.
     pub world_render_width: u32,
     pub world_render_height: u32,
+
+    // The speed that the camera can zoom.
+    pub zoom_speed: f32,
 }
 
 #[derive(Resource, Reflect, Debug, PartialEq, Clone, Copy)]
@@ -81,6 +88,7 @@ impl Default for CameraSettings {
         Self {
             world_render_width: 320,
             world_render_height: 180,
+            zoom_speed: 1.0,
         }
     }
 }
@@ -146,6 +154,7 @@ fn spawn_player(
         children![
             // Camera that sees the world in isometric projection.
             (
+                WorldCamera,
                 Camera3d::default(),
                 Camera {
                     // Render this camera to an image rather than directly to the user's screen.
@@ -177,10 +186,10 @@ fn on_player_add(mut world: DeferredWorld, context: HookContext) {
     let mut active_player = world.resource_mut::<ActivePlayer>();
 
     // Check if an active player already exists.
-    if active_player.id.is_none() {
+    if active_player.player_id.is_none() {
         // Set the entity id of the ActivePlayer to the entity that was added to the world.
         // The entity id from context.entity contains the Player component.
-        active_player.id = Some(context.entity);
+        active_player.player_id = Some(context.entity);
         info!("active_player set to {}", context.entity);
     } else {
         warn!("more than one player exists in the world!");
@@ -195,9 +204,9 @@ fn on_player_remove(mut world: DeferredWorld, _context: HookContext) {
     let mut active_player = world.resource_mut::<ActivePlayer>();
 
     // Check if an active player actually exists.
-    if active_player.id.is_some() {
+    if active_player.player_id.is_some() {
         // Return the ActivePlayer entity id to None to indicate no player in the world.
-        active_player.id = None;
+        active_player.player_id = None;
     } else {
         warn!("tried to remove a player from the world, but no active player exists!");
     }
@@ -209,7 +218,7 @@ fn pan_player(
     player_settings: Res<PlayerSettings>,
     time: Res<Time>,
 ) {
-    if let Some(player_id) = active_player.id {
+    if let Some(player_id) = active_player.player_id {
         for (id, action_state, mut transform) in query.iter_mut() {
             if id != player_id {
                 continue;
@@ -226,6 +235,38 @@ fn pan_player(
                 transform.forward() * pan_distance.y + transform.right() * pan_distance.x;
 
             transform.translation += delta_translation;
+        }
+    }
+}
+
+fn zoom_camera(
+    mut player_query: Query<(Entity, &ActionState<PlayerAction>, &Children), With<Player>>,
+    mut camera_query: Query<(Entity, &mut Projection), With<Camera3d>>,
+    active_player: Res<ActivePlayer>,
+    camera_settings: Res<CameraSettings>,
+    time: Res<Time>,
+) {
+    if let Some(player_id) = active_player.player_id {
+        for (id, action_state, children) in player_query.iter_mut() {
+            if id != player_id {
+                continue;
+            }
+
+            let zoom_delta = action_state.value(&PlayerAction::Zoom)
+                * camera_settings.zoom_speed
+                * time.delta_secs();
+
+            // HACK: This can't be very efficient...
+            for (camera_id, mut projection) in camera_query.iter_mut() {
+                if let Some(_camera_id) = children.iter().find(|child_id| *child_id == camera_id) {
+                    match projection.deref_mut() {
+                        Projection::Orthographic(orthographic_projection) => {
+                            orthographic_projection.scale *= 1. - zoom_delta;
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+            }
         }
     }
 }
