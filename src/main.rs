@@ -31,8 +31,8 @@ fn setup(
     // sphere
     commands.spawn((
         Mesh3d(meshes.add(Sphere::new(1.))),
-        MeshMaterial3d(materials.add(Color::srgba(0.0, 0.0, 0.8, 0.1))),
-        Transform::from_xyz(0.0, 1.0, 2.0),
+        MeshMaterial3d(materials.add(Color::srgba(0.0, 0.0, 0.8, 1.0))),
+        Transform::from_xyz(0.0, 2.0, 2.0),
     ));
 
     // light
