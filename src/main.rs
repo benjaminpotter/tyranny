@@ -59,10 +59,14 @@ fn setup(
     ));
 }
 
-fn sphere_system(mut query: Query<(&mut Transform, &mut SphereCounter), With<MySphere>>) {
+fn sphere_system(
+    mut query: Query<(&mut Transform, &mut SphereCounter), With<MySphere>>,
+    time: Res<Time>,
+) {
     if let Ok((mut transform, mut counter)) = query.single_mut() {
+        let degrees_per_second = 0.5;
         // increment + wrap at 360
-        counter.value = (counter.value + 0.5) % 360.0;
+        counter.value = (counter.value + (degrees_per_second * time.delta_secs())) % 360.0;
 
         // convert degrees to radians
         let angle = (counter.value as f32).to_radians();
