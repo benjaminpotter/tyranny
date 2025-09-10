@@ -48,10 +48,7 @@ fn setup(
     ));
 
     // lights
-    commands.spawn((
-        PointLight::default(),
-        Transform::from_xyz(3.0, 8.0, 5.0),
-    ));
+    commands.spawn((PointLight::default(), Transform::from_xyz(3.0, 8.0, 5.0)));
 
     commands.spawn((
         DirectionalLight {
@@ -63,7 +60,7 @@ fn setup(
 }
 
 fn sphere_system(mut query: Query<(&mut Transform, &mut SphereCounter), With<MySphere>>) {
-    if let Ok((mut transform, mut counter)) = query.get_single_mut() {
+    if let Ok((mut transform, mut counter)) = query.single_mut() {
         // increment + wrap at 360
         counter.value = (counter.value + 0.5) % 360.0;
 
