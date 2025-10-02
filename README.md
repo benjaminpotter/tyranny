@@ -32,22 +32,11 @@ A `tile improvement` changes the yield that a tile produces.
 The `capital tile` is an example of a `tile improvement`, but it is a special case.
 The player is only allowed one `capital tile` which is chosen at the start of the game.
 
-#### Tile Improvements
+#### Tile Improvements Table
 
-<tabel>
-    <thead>
-        <tr>
-            <th> Name </th>
-            <th> Description </th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td> Capital </td>
-            <td> The heart of the empire. Provides buffs to adjacent tiles. </td>
-        </tr>
-    </tbody>
-</table>
+| Name | Description |
+| ---- | ----------- | 
+| Capital | Provides buffs to it's `tile group`. |
 
 ### Fog of War
 
