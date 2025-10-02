@@ -35,14 +35,18 @@ The player is only allowed one `capital tile` which is chosen at the start of th
 #### Tile Improvements
 
 <tabel>
-    <tr>
-        <th> Name </th>
-        <th> Description </th>
-    </tr>
-    <tr>
-        <th> Capital </th>
-        <th> The heart of the empire. Provides buffs to adjacent tiles. </th>
-    </tr>
+    <thead>
+        <tr>
+            <th> Name </th>
+            <th> Description </th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td> Capital </td>
+            <td> The heart of the empire. Provides buffs to adjacent tiles. </td>
+        </tr>
+    </tbody>
 </table>
 
 ### Fog of War
@@ -57,5 +61,4 @@ A player can only see `tile groups` that are immediately adjacent to a `tile gro
 ### Multiplayer Networking
 
 - Authoritative Server
-
 
